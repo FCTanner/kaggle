@@ -1,0 +1,109 @@
+---
+title: "IFSC Sport Climbing Competition Results"
+output: github_document
+---
+
+Dataset from: https://www.kaggle.com/brkurzawa/ifsc-sport-climbing-competition-results
+
+
+```{r setup, include=FALSE}
+.libPaths("C:/R-packages2/")
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+```
+
+```{r}
+library(tidyverse)
+library(tidytext)
+library(countrycode)
+library(ggflags)
+library(hrbrthemes)
+```
+
+
+
+```{r}
+boulder <- read_csv("Data/boulder_results.csv")
+```
+
+## Data exploration
+* Contains data from 2018 to 2019
+* 658 athletes 
+  * No information whether they competed in men's or women's category
+* 50 athletes in total made it into finals
+
+  
+
+```{r}
+columns <- names(boulder)[8:12]
+columns
+boulder_results <- boulder %>% 
+  pivot_longer(cols = columns, names_to = "Stage") %>% 
+  mutate(tops = substr(value, 0, 1),
+         zones = substr(value, 3, 3),
+         name = str_c(str_to_title(FIRST), str_to_title(LAST), sep= " "),
+         year = str_sub(`Competition Date`, -4, -1)) %>% 
+  rename(comp = `Competition Title`) 
+
+
+world_cup_results <- boulder_results %>% 
+  filter(str_detect(string = comp, pattern= "IFSC Climbing Worldcup")) # Filter only for Worldcups
+```
+
+* Find finalists and category
+
+```{r}
+world_cup_finalists <- world_cup_results %>% 
+  filter(Rank < 7) %>% # Filter for finalists
+  select(name) %>% 
+  distinct() %>% 
+  arrange(name)
+
+write_csv(world_cup_finalists, "finalists.csv")
+gender <- read_csv("gender.csv")
+finalists <- cbind(world_cup_finalists, gender)
+finalists$gender[finalists$gender == "m"] <- "Men's"
+finalists$gender[finalists$gender == "f"] <- "Women's"
+
+```
+
+
+
+```{r}
+p <- world_cup_results %>% 
+  filter(Rank < 7) %>% # Filter for finalists
+  left_join(finalists) %>% 
+  filter(Stage == "Final") %>% 
+  group_by(year, gender, name) %>%
+  mutate(finals_count = n(),
+         group = str_c(gender, year, sep = " ")) %>% 
+  ungroup() %>% 
+  mutate(name = reorder_within(name, finals_count, group),
+         country = tolower(countrycode(Nation, origin = "ioc", destination = "iso2c"))) %>% 
+  select(group, finals_count, name, country) %>% 
+  distinct() %>% 
+  ggplot(aes(x= finals_count, y = name, country = country)) +
+  geom_col(width= 0.2)+ 
+  geom_flag() +
+  geom_point(shape =1, size = 6) +
+  scale_x_continuous(limits = c(0,7), breaks = c(1,2,3,4,5,6,7)) +
+  facet_wrap(~group, scales = "free", nrow = 2)+
+  scale_y_reordered() +
+  labs(y = NULL, x = NULL, subtitle = "How many times did athletes make it into finals?", 
+       title = "IFSC Bouldering Worldcups Finalists",
+       caption = "Data:  International Federation of Sport Climbing (IFSC)\nSource: https://www.kaggle.com/brkurzawa/ifsc-sport-climbing-competition-results\nVisualization: @TannerFlorian") +
+  theme_ipsum() +
+  theme(panel.grid.minor.y = element_blank(),
+        panel.grid.major.y = element_blank())
+
+p
+```
+```{r}
+ggsave(p, filename = "Bouldering Worldcup Finalists.png", device = "png", limitsize = F,
+       units = "cm", width = 20, height = 24, dpi = 300)
+```
+
+
+```{r}
+sessionInfo()
+```
