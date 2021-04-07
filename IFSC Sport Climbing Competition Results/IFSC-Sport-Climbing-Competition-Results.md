@@ -145,7 +145,8 @@ p <- world_cup_results %>%
        caption = "Data:  International Federation of Sport Climbing (IFSC)\nSource: https://www.kaggle.com/brkurzawa/ifsc-sport-climbing-competition-results\nVisualization: @TannerFlorian") +
   theme_ipsum() +
   theme(panel.grid.minor.y = element_blank(),
-        panel.grid.major.y = element_blank())
+        panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_line(size = 0.2))
 ```
 
     ## Joining, by = "name"
